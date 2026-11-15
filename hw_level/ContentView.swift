@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @StateObject private var level = LevelModel()
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var showingSettings = false
 
     var body: some View {
@@ -15,9 +16,10 @@ struct ContentView: View {
                         ProgressView("Waiting for motion data")
                     } else {
                         Text(level.mode.label).font(.headline)
-                        BubbleView(x: level.x, y: level.y, flat: level.mode == .flat, isLevel: level.isLevel)
+                        BubbleView(x: level.x, y: level.y, flat: level.mode == .flat, vertical: verticalLevel, isLevel: level.isLevel)
                             .frame(maxWidth: 280)
-                            .aspectRatio(level.mode == .flat ? 1 : 2.4, contentMode: .fit)
+                            .aspectRatio(level.mode == .flat ? 1 : (verticalLevel ? 1 / 2.4 : 2.4), contentMode: .fit)
+                            .frame(maxHeight: verticalLevel ? 280 : nil)
                             .accessibilityHidden(true)
                         Text(level.isLevel ? "Level" : "Not level")
                             .font(.title2.bold())
@@ -70,6 +72,11 @@ struct ContentView: View {
         .onDisappear { level.stop() }
     }
 
+    private var verticalLevel: Bool {
+        let sideEdge = level.mode == .left || level.mode == .right
+        return level.mode != .flat && (sideEdge != (verticalSizeClass == .compact))
+    }
+
     private func reading(_ label: String, _ value: Double) -> some View {
         VStack {
             Text(label).font(.caption).foregroundStyle(.secondary)
@@ -84,6 +91,7 @@ struct BubbleView: View {
     let x: Double
     let y: Double
     let flat: Bool
+    let vertical: Bool
     let isLevel: Bool
 
     var body: some View {
@@ -102,8 +110,8 @@ struct BubbleView: View {
                 Circle()
                     .fill(isLevel ? Color.green : Color.accentColor)
                     .frame(width: diameter, height: diameter)
-                    .offset(x: min(max(x / 15, -1), 1) * rangeX,
-                            y: flat ? min(max(-y / 15, -1), 1) * rangeY : 0)
+                    .offset(x: vertical ? 0 : min(max(x / 15, -1), 1) * rangeX,
+                            y: flat ? min(max(-y / 15, -1), 1) * rangeY : (vertical ? min(max(x / 15, -1), 1) * rangeY : 0))
             }
         }
     }
