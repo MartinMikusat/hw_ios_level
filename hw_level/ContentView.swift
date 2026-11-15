@@ -1,7 +1,74 @@
 import SwiftUI
 
+enum Appearance: String, CaseIterable {
+    case system, light, dark
+
+    var label: String {
+        switch self {
+        case .system: return "System"
+        case .light: return "Light"
+        case .dark: return "Dark"
+        }
+    }
+
+    var interfaceStyle: UIUserInterfaceStyle {
+        switch self {
+        case .system: return .unspecified
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
+    // Set on the windows because preferredColorScheme(nil) does not restore the system appearance.
+    @MainActor func apply() {
+        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+            for window in scene.windows { window.overrideUserInterfaceStyle = interfaceStyle }
+        }
+    }
+}
+
+// Reads the settings directly instead of through LevelModel: the model publishes at the motion rate,
+// and re-rendering the sheet that often resets the segmented control during a tap.
+struct SettingsView: View {
+    @AppStorage("soundEnabled") private var soundEnabled = true
+    @AppStorage("repeatSound") private var repeatSound = true
+    @AppStorage("hapticEnabled") private var hapticEnabled = true
+    @AppStorage("appearance") private var appearance = Appearance.system
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Sound", isOn: $soundEnabled).tint(.gray)
+                    Picker("Sound Mode", selection: $repeatSound) {
+                        Text("Keep Pinging").tag(true)
+                        Text("On Entry Only").tag(false)
+                    }
+                    .disabled(!soundEnabled)
+                    Toggle("Haptics", isOn: $hapticEnabled).tint(.gray)
+                } header: {
+                    Text("Level Feedback")
+                } footer: {
+                    Text("Keep Pinging repeats the sound while the phone is level, so silence means it is no longer level.")
+                }
+                Section("Appearance") {
+                    Picker("Appearance", selection: $appearance) {
+                        ForEach(Appearance.allCases, id: \.self) { Text($0.label) }
+                    }
+                    .pickerStyle(.segmented)
+                }
+            }
+            .navigationTitle("Settings")
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        }
+        .tint(.primary)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var level = LevelModel()
+    @AppStorage("appearance") private var appearance = Appearance.system
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.verticalSizeClass) private var verticalSizeClass
     @State private var showingSettings = false
@@ -31,28 +98,10 @@ struct ContentView: View {
             .toolbar {
                 Button("Settings", systemImage: "gearshape") { showingSettings = true }
             }
-            .sheet(isPresented: $showingSettings) {
-                NavigationStack {
-                    Form {
-                        Section {
-                            Toggle("Sound", isOn: $level.soundEnabled)
-                            Picker("Sound Mode", selection: $level.repeatSound) {
-                                Text("Keep Pinging").tag(true)
-                                Text("On Entry Only").tag(false)
-                            }
-                            .disabled(!level.soundEnabled)
-                            Toggle("Haptics", isOn: $level.hapticEnabled)
-                        } header: {
-                            Text("Level Feedback")
-                        } footer: {
-                            Text("Keep Pinging repeats the sound while the phone is level, so silence means it is no longer level.")
-                        }
-                    }
-                    .navigationTitle("Settings")
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showingSettings = false } } }
-                }
-            }
+            .sheet(isPresented: $showingSettings) { SettingsView() }
         }
+        .tint(.primary)
+        .onChange(of: appearance, initial: true) { _, appearance in appearance.apply() }
         .onAppear { if scenePhase == .active { level.start() } }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { level.start() } else { level.stop() }
@@ -150,11 +199,13 @@ struct BubbleView: View {
                 RoundedRectangle(cornerRadius: flat ? size.width / 2 : min(size.width, size.height) / 2)
                     .fill(Color(uiColor: .secondarySystemBackground))
                 RoundedRectangle(cornerRadius: flat ? size.width / 2 : min(size.width, size.height) / 2)
-                    .strokeBorder(Color.secondary, lineWidth: 2)
-                Circle().strokeBorder(Color.secondary, lineWidth: 2)
+                    .strokeBorder(Color.primary, lineWidth: 2)
+                Circle().strokeBorder(Color.primary, lineWidth: 2)
                     .frame(width: ringDiameter, height: ringDiameter)
+                // Monochrome state: a solid bubble is level, a hollow bubble is not.
                 Circle()
-                    .fill(isLevel ? Color.green : Color.accentColor)
+                    .fill(isLevel ? Color.primary : Color(uiColor: .systemBackground))
+                    .overlay(Circle().strokeBorder(Color.primary, lineWidth: 3))
                     .frame(width: diameter, height: diameter)
                     .offset(x: vertical ? 0 : min(max(x / 15, -1), 1) * rangeX,
                             y: flat ? min(max(-y / 15, -1), 1) * rangeY : (vertical ? min(max(x / 15, -1), 1) * rangeY : 0))
