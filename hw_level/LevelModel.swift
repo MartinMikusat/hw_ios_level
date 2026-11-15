@@ -32,7 +32,9 @@ final class LevelModel: ObservableObject {
     @Published private(set) var hasReading = false
     private let defaults = UserDefaults.standard
 
-    var isLevel: Bool { abs(x) <= 0.5 && (mode != .flat || abs(y) <= 0.5) }
+    static let toleranceDegrees = 0.5
+
+    var isLevel: Bool { (mode == .flat ? hypot(x, y) : abs(x)) <= Self.toleranceDegrees }
     var canCalibrate: Bool { available && hasReading }
 
     func start() {
