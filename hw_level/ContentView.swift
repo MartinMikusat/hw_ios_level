@@ -34,9 +34,18 @@ struct ContentView: View {
             .sheet(isPresented: $showingSettings) {
                 NavigationStack {
                     Form {
-                        Section("Level Feedback") {
+                        Section {
                             Toggle("Sound", isOn: $level.soundEnabled)
+                            Picker("Sound Mode", selection: $level.repeatSound) {
+                                Text("Keep Pinging").tag(true)
+                                Text("On Entry Only").tag(false)
+                            }
+                            .disabled(!level.soundEnabled)
                             Toggle("Haptics", isOn: $level.hapticEnabled)
+                        } header: {
+                            Text("Level Feedback")
+                        } footer: {
+                            Text("Keep Pinging repeats the sound while the phone is level, so silence means it is no longer level.")
                         }
                     }
                     .navigationTitle("Settings")

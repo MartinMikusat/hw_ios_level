@@ -22,17 +22,22 @@ final class LevelModel: ObservableObject {
     @Published private(set) var available = true
     @Published private(set) var calibrated = false
     @AppStorage("soundEnabled") var soundEnabled = true
+    @AppStorage("repeatSound") var repeatSound = true
     @AppStorage("hapticEnabled") var hapticEnabled = true
 
     private let motion = CMMotionManager()
     private let sound = LevelSound()
     private var rawX = 0.0
     private var rawY = 0.0
-    private var wasLevel = false
+    private let haptics = UINotificationFeedbackGenerator()
+    private var entryArmed = true
+    private var lastPingTime = 0.0
     @Published private(set) var hasReading = false
     private let defaults = UserDefaults.standard
 
     static let toleranceDegrees = 0.5
+    static let feedbackRearmDegrees = 1.0
+    static let pingInterval = 1.0
 
     var isLevel: Bool { (mode == .flat ? hypot(x, y) : abs(x)) <= Self.toleranceDegrees }
     var canCalibrate: Bool { available && hasReading }
@@ -41,6 +46,8 @@ final class LevelModel: ObservableObject {
         UIApplication.shared.isIdleTimerDisabled = true
         guard !motion.isDeviceMotionActive else { return }
         guard motion.isDeviceMotionAvailable else { available = false; return }
+        sound.prepare()
+        haptics.prepare()
         // CoreMotion clamps this to the hardware maximum (100 Hz on iPhone).
         motion.deviceMotionUpdateInterval = 1.0 / 120.0
         motion.startDeviceMotionUpdates(to: .main) { [weak self] data, error in
@@ -61,20 +68,20 @@ final class LevelModel: ObservableObject {
         motion.stopDeviceMotionUpdates()
         UIApplication.shared.isIdleTimerDisabled = false
         hasReading = false
-        wasLevel = false
+        entryArmed = true
     }
 
     func calibrate() {
         guard canCalibrate else { return }
         defaults.set([rawX, rawY], forKey: key)
         applyCalibration()
-        wasLevel = isLevel
+        entryArmed = !isLevel
     }
 
     func resetCalibration() {
         defaults.removeObject(forKey: key)
         applyCalibration()
-        wasLevel = isLevel
+        entryArmed = !isLevel
     }
 
     private var key: String { "calibration.\(mode.rawValue)" }
@@ -90,7 +97,7 @@ final class LevelModel: ObservableObject {
         } else {
             next = gy > 0 ? .top : .bottom
         }
-        if next != mode { mode = next; wasLevel = false }
+        if next != mode { mode = next; entryArmed = true }
         if next == .flat {
             rawX = atan2(gx, abs(gz)) * 180 / .pi
             rawY = atan2(gy, abs(gz)) * 180 / .pi
@@ -107,11 +114,28 @@ final class LevelModel: ObservableObject {
         available = true
         hasReading = true
         applyCalibration()
-        if isLevel && !wasLevel {
-            if hapticEnabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-            if soundEnabled { sound.play() }
+        updateFeedback()
+    }
+
+    // Entry feedback fires once per approach: it re-arms only after the reading leaves the wider re-arm band,
+    // so jitter around the tolerance edge cannot retrigger it. With repeating sound, the sound also pings
+    // while level, so silence tells a user who cannot see the screen that the level is lost.
+    private func updateFeedback() {
+        let deviation = mode == .flat ? hypot(x, y) : abs(x)
+        if deviation > Self.feedbackRearmDegrees { entryArmed = true }
+        guard isLevel else { return }
+        let entered = entryArmed
+        entryArmed = false
+        if entered && hapticEnabled {
+            haptics.notificationOccurred(.success)
+            haptics.prepare()
         }
-        wasLevel = isLevel
+        guard soundEnabled else { return }
+        let now = CACurrentMediaTime()
+        if repeatSound ? now - lastPingTime >= Self.pingInterval : entered {
+            lastPingTime = now
+            sound.play()
+        }
     }
 
     private func applyCalibration() {
@@ -126,7 +150,7 @@ private final class LevelSound {
     private let queue = DispatchQueue(label: "com.halwayland.hw-level.sound", qos: .userInitiated)
     private var player: AVAudioPlayer?
 
-    func play() {
+    func prepare() {
         queue.async {
             guard let url = Bundle.main.url(forResource: "level", withExtension: "wav") else {
                 NSLog("Level sound file is missing")
@@ -136,10 +160,21 @@ private final class LevelSound {
                 try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
                 try AVAudioSession.sharedInstance().setActive(true)
                 if self.player == nil { self.player = try AVAudioPlayer(contentsOf: url) }
-                self.player?.currentTime = 0
-                self.player?.play()
+                self.player?.prepareToPlay()
             } catch {
                 NSLog("Level sound failed: %@", error.localizedDescription)
+            }
+        }
+    }
+
+    // A playing sound is never restarted: cutting the waveform mid-cycle produces a click.
+    func play() {
+        queue.async {
+            guard let player = self.player, !player.isPlaying else { return }
+            if !player.play() {
+                // An interruption can deactivate the session; reactivate and retry once.
+                try? AVAudioSession.sharedInstance().setActive(true)
+                player.play()
             }
         }
     }
