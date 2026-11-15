@@ -16,7 +16,7 @@ struct ContentView: View {
                 } else if verticalSizeClass == .compact {
                     HStack(spacing: 24) {
                         graphic
-                        details.frame(width: 240)
+                        details.frame(width: 300)
                     }
                     .padding()
                 } else {
@@ -72,16 +72,32 @@ struct ContentView: View {
             } else {
                 reading("Angle", level.x)
             }
-            if level.calibrated {
-                Label("Calibrated", systemImage: "checkmark.circle")
-                    .font(.subheadline).foregroundStyle(.secondary)
+            calibration
+        }
+    }
+
+    private var calibration: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Optional. Rest the phone on a surface you know is level, then tap Calibrate to treat this position as zero for this orientation.")
+                    .font(.caption).foregroundStyle(.secondary)
+                HStack {
+                    Button("Calibrate") { level.calibrate() }
+                        .disabled(!level.canCalibrate)
+                    if level.calibrated {
+                        Button("Reset") { level.resetCalibration() }
+                    }
+                    Spacer()
+                    if level.calibrated {
+                        Label("Calibrated", systemImage: "checkmark.circle")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
-            Button("Calibrate") { level.calibrate() }
-                .buttonStyle(.borderedProminent)
-                .disabled(!level.canCalibrate)
-            if level.calibrated {
-                Button("Reset Calibration") { level.resetCalibration() }
-            }
+        } label: {
+            Text("Calibration").font(.caption.bold())
         }
     }
 
