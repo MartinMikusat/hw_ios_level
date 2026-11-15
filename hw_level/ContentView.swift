@@ -64,6 +64,9 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { level.start() } else { level.stop() }
         }
+        .onChange(of: level.mode) { _, mode in
+            (UIApplication.shared.delegate as? AppDelegate)?.updateOrientation(flat: mode == .flat)
+        }
         .onDisappear { level.stop() }
     }
 
