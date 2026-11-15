@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXFileReference section */
+		5B65225330A9C110008BC7F1 /* hw-level-Info.plist */ = {isa = PBXFileReference; path = "hw-level-Info.plist"; sourceTree = "<group>"; };
 		A0000000000000000000000B /* hw_level.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = hw_level.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -32,6 +33,7 @@
 		A00000000000000000000004 = {
 			isa = PBXGroup;
 			children = (
+				5B65225330A9C110008BC7F1 /* hw-level-Info.plist */,
 				A0000000000000000000000A /* hw_level */,
 				A00000000000000000000005 /* Products */,
 			);
@@ -206,6 +208,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "hw-level-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = hw_level;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
@@ -226,6 +229,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "hw-level-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = hw_level;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;

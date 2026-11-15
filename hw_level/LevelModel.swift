@@ -41,7 +41,8 @@ final class LevelModel: ObservableObject {
         UIApplication.shared.isIdleTimerDisabled = true
         guard !motion.isDeviceMotionActive else { return }
         guard motion.isDeviceMotionAvailable else { available = false; return }
-        motion.deviceMotionUpdateInterval = 1.0 / 30.0
+        // CoreMotion clamps this to the hardware maximum (100 Hz on iPhone).
+        motion.deviceMotionUpdateInterval = 1.0 / 120.0
         motion.startDeviceMotionUpdates(to: .main) { [weak self] data, error in
             Task { @MainActor in
                 guard let self else { return }
