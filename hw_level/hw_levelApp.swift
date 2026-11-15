@@ -1,18 +1,20 @@
 import SwiftUI
 
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    var orientations: UIInterfaceOrientationMask = .portrait
+    private static var orientations: UIInterfaceOrientationMask = .portrait
 
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
-        orientations
+        Self.orientations
     }
 
-    func updateOrientation(mode: LevelMode) {
+    // The adaptor wraps the delegate, so UIApplication.shared.delegate cannot be cast to AppDelegate.
+    static func updateOrientation(mode: LevelMode) {
         switch mode {
-        case .flat, .top, .bottom: orientations = .portrait
-        case .left: orientations = .landscapeRight
-        case .right: orientations = .landscapeLeft
+        case .flat, .top, .bottom: Self.orientations = .portrait
+        case .left: Self.orientations = .landscapeLeft
+        case .right: Self.orientations = .landscapeRight
         }
+        let orientations = Self.orientations
         for case let scene as UIWindowScene in UIApplication.shared.connectedScenes where scene.activationState == .foregroundActive {
             for window in scene.windows {
                 window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()

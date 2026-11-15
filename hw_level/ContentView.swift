@@ -52,7 +52,7 @@ struct ContentView: View {
             if phase == .active { level.start() } else { level.stop() }
         }
         .onChange(of: level.mode) { _, mode in
-            (UIApplication.shared.delegate as? AppDelegate)?.updateOrientation(mode: mode)
+            AppDelegate.updateOrientation(mode: mode)
         }
         .onDisappear { level.stop() }
     }
