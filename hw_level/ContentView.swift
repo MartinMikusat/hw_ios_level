@@ -44,7 +44,6 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity)
                 .padding()
             }
-            .navigationTitle("hw_level")
             .toolbar {
                 Button("Settings", systemImage: "gearshape") { showingSettings = true }
             }

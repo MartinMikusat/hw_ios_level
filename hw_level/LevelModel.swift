@@ -1,6 +1,6 @@
 import SwiftUI
 import CoreMotion
-import AudioToolbox
+import AVFAudio
 import UIKit
 
 enum LevelMode: String {
@@ -9,10 +9,7 @@ enum LevelMode: String {
     var label: String {
         switch self {
         case .flat: return "Flat surface"
-        case .top: return "Top edge"
-        case .bottom: return "Bottom edge"
-        case .left: return "Left edge"
-        case .right: return "Right edge"
+        case .top, .bottom, .left, .right: return "Sideways"
         }
     }
 }
@@ -24,10 +21,11 @@ final class LevelModel: ObservableObject {
     @Published private(set) var y = 0.0
     @Published private(set) var available = true
     @Published private(set) var calibrated = false
-    @AppStorage("soundEnabled") var soundEnabled = false
-    @AppStorage("hapticEnabled") var hapticEnabled = false
+    @AppStorage("soundEnabled") var soundEnabled = true
+    @AppStorage("hapticEnabled") var hapticEnabled = true
 
     private let motion = CMMotionManager()
+    private var audioPlayer: AVAudioPlayer?
     private var rawX = 0.0
     private var rawY = 0.0
     private var wasLevel = false
@@ -108,9 +106,22 @@ final class LevelModel: ObservableObject {
         applyCalibration()
         if isLevel && !wasLevel {
             if hapticEnabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-            if soundEnabled { AudioServicesPlaySystemSound(1104) }
+            if soundEnabled { playSound() }
         }
         wasLevel = isLevel
+    }
+
+    private func playSound() {
+        guard let url = Bundle.main.url(forResource: "level", withExtension: "wav") else { return }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
+            try AVAudioSession.sharedInstance().setActive(true)
+            if audioPlayer == nil { audioPlayer = try AVAudioPlayer(contentsOf: url) }
+            audioPlayer?.currentTime = 0
+            audioPlayer?.play()
+        } catch {
+            NSLog("Level sound failed: %@", error.localizedDescription)
+        }
     }
 
     private func applyCalibration() {
