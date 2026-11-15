@@ -25,7 +25,7 @@ final class LevelModel: ObservableObject {
     @AppStorage("hapticEnabled") var hapticEnabled = true
 
     private let motion = CMMotionManager()
-    private var audioPlayer: AVAudioPlayer?
+    private let sound = LevelSound()
     private var rawX = 0.0
     private var rawY = 0.0
     private var wasLevel = false
@@ -106,22 +106,9 @@ final class LevelModel: ObservableObject {
         applyCalibration()
         if isLevel && !wasLevel {
             if hapticEnabled { UINotificationFeedbackGenerator().notificationOccurred(.success) }
-            if soundEnabled { playSound() }
+            if soundEnabled { sound.play() }
         }
         wasLevel = isLevel
-    }
-
-    private func playSound() {
-        guard let url = Bundle.main.url(forResource: "level", withExtension: "wav") else { return }
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
-            try AVAudioSession.sharedInstance().setActive(true)
-            if audioPlayer == nil { audioPlayer = try AVAudioPlayer(contentsOf: url) }
-            audioPlayer?.currentTime = 0
-            audioPlayer?.play()
-        } catch {
-            NSLog("Level sound failed: %@", error.localizedDescription)
-        }
     }
 
     private func applyCalibration() {
@@ -129,5 +116,28 @@ final class LevelModel: ObservableObject {
         calibrated = offsets?.count == 2
         x = rawX - (offsets?.first ?? 0)
         y = rawY - (offsets?.last ?? 0)
+    }
+}
+
+private final class LevelSound {
+    private let queue = DispatchQueue(label: "com.halwayland.hw-level.sound", qos: .userInitiated)
+    private var player: AVAudioPlayer?
+
+    func play() {
+        queue.async {
+            guard let url = Bundle.main.url(forResource: "level", withExtension: "wav") else {
+                NSLog("Level sound file is missing")
+                return
+            }
+            do {
+                try AVAudioSession.sharedInstance().setCategory(.playback, options: .mixWithOthers)
+                try AVAudioSession.sharedInstance().setActive(true)
+                if self.player == nil { self.player = try AVAudioPlayer(contentsOf: url) }
+                self.player?.currentTime = 0
+                self.player?.play()
+            } catch {
+                NSLog("Level sound failed: %@", error.localizedDescription)
+            }
+        }
     }
 }
