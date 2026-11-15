@@ -15,31 +15,16 @@ struct ContentView: View {
                     } else if !level.hasReading {
                         ProgressView("Waiting for motion data")
                     } else {
-                        Text(level.mode.label).font(.headline)
-                        BubbleView(x: level.x, y: level.y, flat: level.mode == .flat, vertical: verticalLevel, isLevel: level.isLevel)
-                            .frame(maxWidth: 280)
-                            .aspectRatio(level.mode == .flat ? 1 : (verticalLevel ? 1 / 2.4 : 2.4), contentMode: .fit)
-                            .frame(maxHeight: verticalLevel ? 280 : nil)
-                            .accessibilityHidden(true)
-                        Text(level.isLevel ? "Level" : "Not level")
-                            .font(.title2.bold())
-                        if level.mode == .flat {
+                        if verticalSizeClass == .compact {
                             HStack(spacing: 32) {
-                                reading("Left to right", level.x)
-                                reading("Top to bottom", level.y)
+                                graphic
+                                details
                             }
                         } else {
-                            reading("Angle", level.x)
-                        }
-                        if level.calibrated {
-                            Label("Calibrated", systemImage: "checkmark.circle")
-                                .font(.subheadline).foregroundStyle(.secondary)
-                        }
-                        Button("Calibrate") { level.calibrate() }
-                            .buttonStyle(.borderedProminent)
-                            .disabled(!level.canCalibrate)
-                        if level.calibrated {
-                            Button("Reset Calibration") { level.resetCalibration() }
+                            VStack(spacing: 24) {
+                                graphic
+                                details
+                            }
                         }
                     }
                 }
@@ -67,9 +52,44 @@ struct ContentView: View {
             if phase == .active { level.start() } else { level.stop() }
         }
         .onChange(of: level.mode) { _, mode in
-            (UIApplication.shared.delegate as? AppDelegate)?.updateOrientation(flat: mode == .flat)
+            (UIApplication.shared.delegate as? AppDelegate)?.updateOrientation(mode: mode)
         }
         .onDisappear { level.stop() }
+    }
+
+    private var graphic: some View {
+        VStack(spacing: 16) {
+            Text(level.mode.label).font(.headline)
+            BubbleView(x: level.x, y: level.y, flat: level.mode == .flat, vertical: verticalLevel, isLevel: level.isLevel)
+                .frame(maxWidth: 280)
+                .aspectRatio(level.mode == .flat ? 1 : (verticalLevel ? 1 / 2.4 : 2.4), contentMode: .fit)
+                .frame(maxHeight: verticalLevel ? 280 : nil)
+                .accessibilityHidden(true)
+        }
+    }
+
+    private var details: some View {
+        VStack(spacing: 16) {
+            Text(level.isLevel ? "Level" : "Not level").font(.title2.bold())
+            if level.mode == .flat {
+                HStack(spacing: 32) {
+                    reading("Left to right", level.x)
+                    reading("Top to bottom", level.y)
+                }
+            } else {
+                reading("Angle", level.x)
+            }
+            if level.calibrated {
+                Label("Calibrated", systemImage: "checkmark.circle")
+                    .font(.subheadline).foregroundStyle(.secondary)
+            }
+            Button("Calibrate") { level.calibrate() }
+                .buttonStyle(.borderedProminent)
+                .disabled(!level.canCalibrate)
+            if level.calibrated {
+                Button("Reset Calibration") { level.resetCalibration() }
+            }
+        }
     }
 
     private var verticalLevel: Bool {

@@ -7,16 +7,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         orientations
     }
 
-    func updateOrientation(flat: Bool) {
-        orientations = flat ? .portrait : .allButUpsideDown
+    func updateOrientation(mode: LevelMode) {
+        switch mode {
+        case .flat, .top, .bottom: orientations = .portrait
+        case .left: orientations = .landscapeRight
+        case .right: orientations = .landscapeLeft
+        }
         for case let scene as UIWindowScene in UIApplication.shared.connectedScenes where scene.activationState == .foregroundActive {
             for window in scene.windows {
                 window.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
             }
-            if flat {
-                scene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait)) { error in
-                    NSLog("Unable to return to portrait: %@", error.localizedDescription)
-                }
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: orientations)) { error in
+                NSLog("Unable to change orientation: %@", error.localizedDescription)
             }
         }
     }
